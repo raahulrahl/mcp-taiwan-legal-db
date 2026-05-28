@@ -1,18 +1,37 @@
 # Exposing this MCP server as a network-addressable Bindu agent
 
 This directory contains a complete, working example of how to take the
-`mcp-taiwan-legal-db` Model Context Protocol (MCP) server and expose it
-as a network-addressable autonomous agent over the Agent-to-Agent (A2A)
-JSON-RPC protocol, using [Bindu](https://github.com/GetBindu/Bindu).
+open-source `mcp-taiwan-legal-db` (lawchat-oss) Model Context Protocol
+server and expose it as a network-addressable A2A agent using
+[Bindu](https://github.com/GetBindu/Bindu).
+
+> **Community-built example.** Not affiliated with or endorsed by the
+> `lawchat-oss` maintainers, any Taiwan government body, or any law firm.
+> The MCP server is open source under its own LICENSE; this directory
+> is example glue for one possible way to drive it.
 
 It is contributed by the team at **Bindu**, where we are building a
 **compliance operating system for small and medium businesses**. The
-agent in this directory ("Lex Taiwan") is one of the reference agents we
-ship as part of that work, and the present pull request is the result of
-integrating your MCP server into our compliance stack. We will link back
-to this repository from our public documentation and example index so
-that anyone exploring Bindu can find your project as the canonical way
-to access Taiwan's legal corpora.
+agent in this directory ("Lex Taiwan") is one of the reference agents
+we ship as part of that work, and the present pull request is the
+result of integrating the `mcp-taiwan-legal-db` MCP server into our
+compliance stack. We link back to this repository from Bindu's
+documentation as a technical reference — the canonical way to reach
+Taiwan's public legal corpora over MCP.
+
+## Maintenance
+
+The upstream MCP server in `mcp_server/` is maintained by the
+`lawchat-oss` team — please file issues there for anything to do with
+the tools or the underlying data.
+
+For questions, bugs, or improvements specific to *this example* — the
+Bindu glue (`bindu_agent.py`, `cli.py`), the system prompt
+(`prompts.py`), or this README — please open an issue against
+[Bindu](https://github.com/GetBindu/Bindu) and tag the title with
+`[mcp-taiwan-legal-db example]`, or reach the Bindu team on
+[Discord](https://discord.gg/3w5zuYUuwt). We will keep this
+directory in sync with the upstream MCP server's tool surface.
 
 ---
 
@@ -102,6 +121,66 @@ identifier supported by OpenRouter — for example `openai/gpt-4o`,
 
 ---
 
+## Network exposure & dependencies
+
+This section flags three things that are easy to miss when running the
+example for the first time. Read it before you change the defaults.
+
+### Public network exposure is opt-in
+
+Bindu can open an [FRP](https://github.com/fatedier/frp) reverse tunnel
+that makes the agent's HTTP endpoint reachable on the public internet.
+That is useful for cross-network agent-to-agent calls, but it has two
+properties worth being explicit about:
+
+- The HTTP endpoint at `:3773` is **unauthenticated** at the transport
+  layer. Anyone who learns the FRP URL can hit `message/send`.
+- Each request runs through your configured LLM (OpenRouter or
+  whichever provider you set), so **your model-API key is on the
+  billing path** for any caller who reaches the agent.
+
+Because of this, `bindu_agent.py` sets `expose` from a `BINDU_EXPOSE`
+env var and **defaults it to `false`**. Local development on
+`http://localhost:3773` works without changing anything. To enable the
+FRP tunnel, set `BINDU_EXPOSE=true` in `.env` deliberately, and review
+the rest of this section first.
+
+### `BINDU_AGENT_AUTHOR` ends up in the public DID
+
+Once the tunnel is on, the agent's DID — visible in every agent card
+fetch and embedded in every signed artifact — has the shape
+`did:bindu:<author>:<name>:<uuid>`, with `<author>` derived from
+whatever you set in `BINDU_AGENT_AUTHOR`. The example default in both
+`.env.example` and the agent card snippet above is the literal
+placeholder `your_email_here@example.com`, so you will notice
+immediately if you forgot to substitute your own value before turning
+on `BINDU_EXPOSE`.
+
+### Dependency breadth
+
+The `bindu` package on PyPI pulls a wider dependency tree than the
+example actually exercises, because Bindu integrates with several
+optional infrastructure layers and ships their clients in the core
+distribution. As of this PR, that includes (non-exhaustive):
+
+- [OpenTelemetry](https://opentelemetry.io/) traces and metrics.
+- [Sentry](https://sentry.io/) error reporting (off unless a DSN is
+  set).
+- An [Ory Hydra](https://www.ory.sh/hydra/) OAuth2 client (off unless
+  Hydra URLs are set).
+- An [x402](https://x402.io/) / USDC micropayment client (off unless a
+  wallet is configured).
+
+Each of those features is **opt-in** via environment variables — none
+of them is engaged in this example. But the libraries themselves are
+installed into your virtual environment when you run
+`pip install -r requirements.txt`, regardless of whether you use them.
+If you prefer a narrower footprint, you can run the example against
+the `cli.py` entry point instead, which exercises the agno + MCP path
+without Bindu in the loop.
+
+---
+
 ## Running the agent
 
 The primary entry point is the Bindu A2A service:
@@ -152,8 +231,8 @@ curl -s http://localhost:3773/.well-known/agent.json | jq
 ```json
 {
   "id": "44b10e18-be36-03c7-1941-6c393c32e5b8",
-  "name": "lex-taiwan",
-  "description": "An agentic Taiwan legal research assistant: judgments, regulations, and constitutional court interpretations, sourced live from the 司法院, 全國法規資料庫, and 憲法法庭.",
+  "name": "bindu-lex-taiwan",
+  "description": "An agentic Taiwan legal research assistant: judgments, regulations, and constitutional court interpretations, sourced from public 司法院, 全國法規資料庫, and 憲法法庭 databases. Community-built example. Not affiliated with or endorsed by the lawchat-oss maintainers, any Taiwan government body, or any law firm.",
   "url": "http://localhost:3773",
   "version": "2026.20.8",
   "protocolVersion": "1.0.0",
@@ -163,8 +242,8 @@ curl -s http://localhost:3773/.well-known/agent.json | jq
     "pushNotifications": false,
     "extensions": [
       {
-        "uri": "did:bindu:you_at_example_com:lex-taiwan:44b10e18-be36-03c7-1941-6c393c32e5b8",
-        "description": "DID-based identity for lex-taiwan",
+        "uri": "did:bindu:your_email_here_at_example_com:bindu-lex-taiwan:44b10e18-be36-03c7-1941-6c393c32e5b8",
+        "description": "DID-based identity for bindu-lex-taiwan",
         "required": false
       }
     ]
@@ -206,7 +285,7 @@ curl -s http://localhost:3773/health | jq
   },
   "application": {
     "penguin_id": "2d5b0908-4384-bb67-8c8c-3c2801999e96",
-    "agent_did": "did:bindu:you_at_example_com:lex-taiwan:2d5b0908-4384-bb67-8c8c-3c2801999e96"
+    "agent_did": "did:bindu:your_email_here_at_example_com:bindu-lex-taiwan:2d5b0908-4384-bb67-8c8c-3c2801999e96"
   },
   "system": {
     "python_version": "3.14.2",

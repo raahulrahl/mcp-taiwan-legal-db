@@ -115,12 +115,21 @@ def handler(messages: list[dict[str, str]]):
 # --- Bindu config ------------------------------------------------------------
 
 config = {
-    "author": os.getenv("BINDU_AGENT_AUTHOR", "you@example.com"),
-    "name": os.getenv("BINDU_AGENT_NAME", "lex-taiwan"),
+    # `BINDU_AGENT_AUTHOR` ends up inside the public agent card DID once
+    # `expose` is on, so the default is a clearly-fake placeholder rather
+    # than something that looks like a real address. Override in .env.
+    "author": os.getenv("BINDU_AGENT_AUTHOR", "your_email_here@example.com"),
+    "name": os.getenv("BINDU_AGENT_NAME", "bindu-lex-taiwan"),
     "description": AGENT_DESCRIPTION,
     "deployment": {
         "url": os.getenv("BINDU_AGENT_URL", "http://localhost:3773"),
-        "expose": True,
+        # Opt-in only. Setting BINDU_EXPOSE=true asks Bindu to open an
+        # FRP reverse tunnel that makes this agent's HTTP endpoint
+        # reachable on the public internet. The endpoint is unauthenticated
+        # and any model-API key configured here is on the billing path.
+        # Leave this off unless you have read the README's
+        # "Network exposure & dependencies" section.
+        "expose": os.getenv("BINDU_EXPOSE", "false").lower() == "true",
         "cors_origins": ["http://localhost:5173"],
     },
     "capabilities": {"streaming": False},

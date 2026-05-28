@@ -349,25 +349,9 @@ Any MCP client that follows the [Model Context Protocol specification](https://m
 
 ---
 
-## Building agents on top of this server
+## Build an A2A agent on top of this server
 
-If you would like to drive these tools from an autonomous agent rather
-than a Claude desktop client — for example, to expose Taiwan legal
-research as a service that other software systems can call — see the
-[`examples/agno-bindu/`](examples/agno-bindu/) walkthrough.
-
-The example uses [Bindu](https://github.com/GetBindu/Bindu) to expose
-this MCP server as a network-addressable agent over the
-[Agent-to-Agent JSON-RPC protocol](https://github.com/google-a2a/A2A),
-complete with a cryptographic identity (a Decentralized Identifier, or
-DID) and a public agent card. The example is contributed by the Bindu
-team, where we are building a compliance operating system for small and
-medium businesses; this MCP server is the first source of primary legal
-material we have integrated into that stack.
-
-The full API reference for the resulting service — including request
-and response shapes for every endpoint — is documented inside
-[`examples/agno-bindu/README.md`](examples/agno-bindu/README.md).
+Want to drive these tools from an A2A agent? See [`examples/agno-bindu/`](examples/agno-bindu/) — a community-contributed A2A agent example.
 
 ---
 
